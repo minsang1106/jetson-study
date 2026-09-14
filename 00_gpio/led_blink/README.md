@@ -1,504 +1,161 @@
 # 회로 설계
 
-이번에는 GPIO 출력뿐만 아니라 **GPIO 입력**도 사용해본다.
+젯슨 오린 나노 디벨로퍼 킷의 expansion pin header
 
-구성은 다음과 같다.
+!image.png
 
-```
-LED 출력 : Physical Pin 7
-버튼 입력 : Physical Pin 15
-```
-
-LED 회로:
-
-```
-Pin 7
-  │
-[330Ω]
-  │
- LED
-  │
- GND
-```
-
-버튼 회로는 **pull-up 방식**으로 구성했다.
-
-```
-3.3V
- │
-[2kΩ pull-up]
- │
- ├──────── Pin 15
- │
-[BUTTON]
- │
-GND
-```
-
-버튼을 누르지 않았을 때는 pull-up 저항에 의해 Pin 15가 HIGH가 된다.
-
-```
-3.3V
- │
-[2kΩ]
- │
-Pin 15
-
-→ HIGH
-```
-
-버튼을 누르면 Pin 15가 GND와 연결된다.
-
-```
-Pin 15
- │
-[BUTTON]
- │
-GND
-
-→ LOW
-```
-
-따라서 동작은:
-
-```
-버튼 OFF → Pin 15 = HIGH
-버튼 ON  → Pin 15 = LOW
-```
-
-이다.
-
----
+GPIO 핀 중 하나를 출력 핀으로 설정하고, 저항과 led를 직렬연결한 후, gnd에 연결할 것임.
 
 # 파이썬 코드
-
-우선 가장 단순한 polling 방식으로 구현했다.
 
 ```python
 import Jetson.GPIO as GPIO
 import time
 
 LED_PIN = 7
-BUTTON_PIN = 15
-
 GPIO.setmode(GPIO.BOARD)
-
-GPIO.setup(LED_PIN, GPIO.OUT, initial=GPIO.LOW)
-GPIO.setup(BUTTON_PIN, GPIO.IN)
+GPIO.setup(LED_PIN, GPIO.OUT)
 
 try:
     while True:
-        button_state = GPIO.input(BUTTON_PIN)
+        GPIO.output(LED_PIN, GPIO.HIGH)
+        time.sleep(0.5)
 
-        if button_state == GPIO.LOW:
-            GPIO.output(LED_PIN, GPIO.HIGH)
-        else:
-            GPIO.output(LED_PIN, GPIO.LOW)
-
-        time.sleep(0.01)
-
-finally:
-    GPIO.cleanup()
-```
-
-### 코드 설명
-
-`GPIO.setup(BUTTON_PIN, GPIO.IN)`
-
-: Physical Pin 15에 대응하는 GPIO channel을 입력으로 사용한다.
-
-`GPIO.input(BUTTON_PIN)`
-
-: 해당 GPIO의 현재 논리값을 읽는다.
-
-반환값은:
-
-```
-GPIO.HIGH → 1
-GPIO.LOW  → 0
-```
-
-이다.
-
-버튼 회로가 pull-up 방식이므로:
-
-```python
-if button_state == GPIO.LOW:
-```
-
-는 곧
-
-> 버튼이 눌렸다면
-> 
-
-이라는 의미가 된다.
-
-버튼이 눌렸을 때 LED 출력 Pin 7을 HIGH로 설정한다.
-
-```python
-GPIO.output(LED_PIN, GPIO.HIGH)
-```
-
-버튼이 눌리지 않았을 때는 LOW로 설정한다.
-
----
-
-# 왜 pull-up 저항이 필요한가?
-
-GPIO input은 외부에서 들어오는 전압을 읽는다.
-
-그런데 버튼을 다음처럼 단순히 연결했다고 생각해보자.
-
-```
-Pin 15
- │
-[BUTTON]
- │
-GND
-```
-
-버튼을 누르면 Pin 15가 GND와 연결되므로 확실하게 LOW가 된다.
-
-하지만 버튼을 놓으면:
-
-```
-Pin 15 ───── 아무것도 연결되지 않음
-```
-
-이 되어 HIGH도 LOW도 아닌 **floating 상태**가 될 수 있다.
-
-따라서 버튼이 열려 있을 때 기본 상태를 확실하게 정해줄 필요가 있다.
-
-이번에는 3.3V에 pull-up했다.
-
-```
-3.3V
- │
-[Pull-up resistor]
- │
- ├── Pin 15
- │
-Button
- │
-GND
-```
-
-따라서 기본 상태는 HIGH이고 버튼을 눌렀을 때만 LOW가 된다.
-
----
-
-# 실행했더니…
-
-처음에는 버튼 입력이 제대로 동작하지 않았다.
-
-버튼 상태만 확인하기 위해 다음과 같이 테스트했다.
-
-```python
-import Jetson.GPIO as GPIO
-import time
-
-BUTTON_PIN = 15
-
-GPIO.setmode(GPIO.BOARD)
-GPIO.setup(BUTTON_PIN, GPIO.IN)
-
-try:
-    while True:
-        print(GPIO.input(BUTTON_PIN))
+        GPIO.output(LED_PIN, GPIO.LOW)
         time.sleep(0.5)
 finally:
     GPIO.cleanup()
-```
-
-정상이라면:
 
 ```
-버튼 안 누름 → 1
-버튼 누름    → 0
-버튼 놓음    → 1
-```
 
-이 나와야 한다.
+vscode remote-ssh를 이용하여 프로그래밍했다.
 
-하지만 실제로는 버튼을 한 번 누른 뒤 계속 `0`이 읽히는 문제가 있었다.
+여기서 하나 알아낸 것은 젯슨에 remote-ssh를 연결하면 ~/.vscode-server라는 숨겨진 파일이 설치됨.
 
----
+맥에서는 창만 띄우기 때문에 remote-ssh로 원격 접속할 때는 익스텐션을 또 깔아줘야 한다. 
+이것은 젯슨에 깔아주는 것임.
 
-# Pin 15의 PAD 설정을 확인해보자
+### 코드 설명
 
-Pin 15의 PADCTL register를 확인했다.
+`GPIO.setmode(GPIO.BOARD)` : 물리적인 핀 번호로 세팅하겠다.
 
-```bash
-sudo busybox devmem 0x2440020
-```
+`GPIO.setup(LED_PIN, GPIO.OUT)` : LED_PIN(7번 핀)을 out 핀으로 설정
 
-결과:
+`try` 구문 쓴 이유 : 무한 루프를 인터럽트로 빠져나와도 GPIO 핀 설정을 정리할 수 있도록.
 
-```
-0x00000055
-```
+# 실행했더니…
 
-`0x55`를 이진수로 나타내면:
+문제가 발생했다. led가 깜빡이지 않고, 긴 경고 메시지가 떴다.
 
-```
-0x55 = 0101 0101
+일반 사용자 권한으로 실행했을 때 :
 
-bit:   7 6 5 4 3 2 1 0
-       0 1 0 1 0 1 0 1
-         ↑   ↑ └─┘
-        b6  b4 b3:2
-```
+pinmux check를 위해서 `/dev/mem` 에 접근해야 하는데 권한이 없다고 뜸.
 
-NVIDIA Orin PADCTL 설정에서:
+sudo로 실행했을 때 :
 
-```
-bit 6 = 1
-bit 4 = 1
-```
+7번 핀을 output으로 설정했는데 pinmux에는 input으로 설정되어 있다는 경고.
 
-이므로 Pin 15는 **input에 맞는 PAD 설정**이었다.
+# 어떻게 해결했는가?
 
-또한 `PUPD`는 bit `[3:2]`에 저장된다.
+오류 메시지에서 있던 문구가 있었다.
 
-```
-00 → no pull
-01 → pull-down
-10 → pull-up
-```
+`sudo busybox devmem 0x3038534 w 0xA`를 쳐봐라. (주소는 임의로 바꿨다)
 
-`0x55`에서는:
+이 명령어를 입력하고 다시 코드를 실행했더니 성공함.
 
-```
-bit[3:2] = 01
-```
+# 무엇이 문제였는가?
 
-이므로 처음에는 내부 pull-down 상태였다.
+## 배경지식
 
-PADCTL의 pull 설정을 pull-up으로 변경해보기도 했다.
+### PAD란?
 
-하지만 **pull-up으로 변경한 것만으로는 문제를 해결하지 못했다.**
+Jetson SoC 안에는 I2C controller, GPIO controller, UART controller 등의 여러 회로가 있고,
+이 회로들이 PAD라는 하드웨어를 거쳐서 핀과 연결된다.
 
-즉 이번 문제를 단순히
+PAD는 단순한 통로가 아니라 핀을 입력신호, 출력신호로 사용할지, 핀을 어느 회로와 연결할지 등을 
+결정할 수 있는 기능이 있다.
 
-> 내부 pull-down 때문에 입력이 LOW였다.
-> 
+### PADCTL이란?
 
-라고만 설명할 수는 없었다.
+이름 그대로 PAD를 컨트롤하는 레지스터들. 
 
----
+### GPIO controller
 
-# 외부 pull-up 저항을 바꿔보았다
-
-처음에는 일반적으로 많이 사용하는 `10kΩ` pull-up 저항을 사용했다.
+PADCTL과 GPIO controller는 같은 것이 아니다. 
 
 ```
-3.3V
- │
-[10kΩ]
- │
- ├── Pin 15
-```
-
-하지만 실제 환경에서는 버튼을 한 번 누른 뒤 Pin 15가 정상적으로 HIGH로 돌아오지 않는 문제가 있었다.
-
-그래서 외부 pull-up 저항을 더 낮은 값으로 변경했다.
-
-```
-10kΩ → 2kΩ
-```
-
-결과:
-
-```
-버튼 OFF → 1
-버튼 ON  → 0
-버튼 OFF → 1
-```
-
-로 정상 동작하였다.
-
-따라서 최종 회로에서는 `2kΩ` 외부 pull-up 저항을 사용했다.
-
-버튼을 누르면 저항을 통해 GND로 흐르는 전류는:
-
-$$
-I=\frac{3.3V}{2k\Omega}\approx1.65mA
-$$
-
-이다.
-
-### 중요한 점
-
-이번 실험에서는 **2kΩ에서 정상 동작했다는 것은 직접 확인했지만, 10kΩ에서 왜 HIGH가 안정적으로 형성되지 않았는지는 아직 정확한 원인을 확인하지 않았다.**
-
-PADCTL의 내부 pull 설정을 pull-up으로 바꾼 뒤에도 동일한 현상이 있었기 때문에 단순히 내부 pull-down과 외부 저항의 분압 문제라고 결론 내릴 수는 없다.
-
-이 부분은 추후 실제 Pin 15 전압, 입력 임계전압, PAD 설정 등을 추가로 확인해볼 필요가 있다.
-
----
-
-# GPIO input에서 알게 된 것
-
-GPIO input에서 `input`이라는 것은 핀을 LOW로 만든다는 의미가 아니다.
-
-```
-GPIO OUTPUT
-→ SoC가 핀의 전압을 적극적으로 HIGH/LOW로 구동
-
-GPIO INPUT
-→ 외부에서 핀에 들어오는 전압을 읽음
-```
-
-따라서 input 핀은 기본 전압을 결정하기 위해 pull-up 또는 pull-down이 필요할 수 있다.
-
-```
-pull-up
-
-3.3V
- │
-[R]
- │
-GPIO INPUT
-
-→ 기본 HIGH
-```
-
-```
-pull-down
-
-GPIO INPUT
- │
-[R]
- │
-GND
-
-→ 기본 LOW
-```
-
----
-
-# Polling 방식의 문제점
-
-현재 코드는:
-
-```python
-while True:
-    button_state = GPIO.input(BUTTON_PIN)
-```
-
-처럼 버튼 상태를 계속 읽는다.
-
-즉 버튼이 아무 일도 하지 않아도 CPU는 반복적으로 GPIO 상태를 확인한다.
-
-```
-read
-read
-read
-read
-read
-...
-```
-
-이런 방식을 **polling**이라고 한다.
-
-버튼처럼 상태 변화가 드문 입력을 polling으로 계속 검사하는 것은 불필요한 작업이 발생할 수 있다.
-
-Jetson.GPIO에서는 이를 위해 edge/event 기반 API도 제공한다.
-
-```
-GPIO.RISING
-GPIO.FALLING
-GPIO.BOTH
-```
-
-pull-up 방식의 버튼에서는:
-
-```
-버튼 안 누름 : HIGH
-        ↓ 버튼 누름
-버튼 누름    : LOW
-
-HIGH → LOW
-```
-
-이므로 **FALLING edge**를 감지하면 버튼이 눌린 순간을 알 수 있다.
-
-그래서 다음 단계에서는:
-
-```python
-GPIO.add_event_detect(
-    BUTTON_PIN,
-    GPIO.FALLING,
-    callback=...
-)
-```
-
-방식으로 polling 없이 버튼 입력을 처리할 수 있다.
-
----
-
-# 오늘 실습에서 정리한 전체 구조
-
-```
-                     Jetson Orin Nano
-
-3.3V
- │
-[2kΩ pull-up]
- │
- ├──── Pin 15
- │        │
-Button    │
- │        │
-GND       │
-          │
-          ▼
-      GPIO Input
-          │
-          │ GPIO.input()
-          ▼
-     Python Program
-          │
-          │ 버튼이 LOW라면
-          ▼
-      GPIO Output
-          │
-          ▼
-        Pin 7
-          │
-        330Ω
-          │
-         LED
-          │
-         GND
-```
-
-그리고 어제 공부한 내용과 연결하면:
-
-```
-버튼
- ↓
-Physical Pin 15
- ↓
-PAD / PADCTL
- ↓
 GPIO Controller
- ↓
-Linux GPIO subsystem
- ↓
-Jetson.GPIO
- ↓
-Python
-
-Python
- ↓
-Jetson.GPIO
- ↓
-GPIO Controller
- ↓
-PAD / PADCTL
- ↓
-Physical Pin 7
- ↓
+      │
+      │ HIGH / LOW 신호 생성
+      ▼
+PAD / Pinmux
+      │
+      │ 이 신호를 밖으로 내보냄
+      ▼
+Physical Pin
+      │
+      ▼
 LED
 ```
+
+## 문제를 알아보자
+
+`GPIO.setup(7, GPIO.OUT)` : GPIO controller에게 회로 방향을 바깥으로 열어두라고 명령한다.
+
+ `GPIO.output(7, GPIO.HIGH)` : GPIO controller는 high 신호를 생성한다.
+
+하지만 PADCTL은 부팅될 때부터 설정되어 있었다.
+
+```
+GPIO Controller 쪽
+┌─────────────────┐
+│ OUTPUT으로 사용   │
+└────────┬────────┘
+         │
+         │ HIGH/LOW 내보내고 싶음
+         ▼
+PADCTL
+┌─────────────────┐
+│ INPUT으로 설정    │
+└────────┬────────┘
+         │
+         ▼
+Physical Pin 7
+```
+
+# 그래서 어떻게 해결이 된건데?
+
+`sudo busybox devmem 0x3038534 w 0xA` 
+
+이 명령은 마법의 주문이었을까?
+
+문제의 원인은 7번 핀을 관장하는 PADCTL에 “7번 핀은 input용이다”라고 설정되어 있었던 것이다.
+
+`busybox` : 리눅스에서 자주 쓰는 여러 기본 명령어를 하나의 실행 파일에 묶어놓은 프로그램.
+각각의 명령어를 전부 따로 설치하는 것보다 작고 간단하게 많은 기본 유틸리티를 제공할 수 있기 때문에 사용
+
+`devmem` : busybox의 기능 중에 devmem을 사용해라. 
+사용자 공간에서 특정 물리 주소를 직접 읽거나 쓰기 위한 디버깅 도구
+
+`0x3038534` : 7번핀의 PADCTL MMIO 레지스터의 물리주소
+
+`w 0xA` : 해당 레지스터에 `0xA`를 write. 32비트 레지스터라 실제로는 `0x0000000A`
+
+### 왜 굳이 0xA를 write했을까?
+
+PAD 설정은 다음과 같다.
+
+GPIO로 사용할 것 → bit10 = 0
+
+output → bit6 = 0, bit4 = 0
+
+input  → bit6 = 1, bit4 = 1
+
+0xA = 1010
+
+bit6 = 0, bit4 = 0으로 만듦.
+
+0x0이 아니라 0xA인 이유는 기존의 값에서 6번 비트, 4번 비트만 0으로 바꾼 값이기 때문.
+계산해서 준 듯.
+
+Jetson Orin Series SoC Technical Reference Manual 에 있다.
