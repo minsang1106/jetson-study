@@ -1,0 +1,22 @@
+# C/C++
+*.o
+*.out
+*.a
+*.so
+
+# Build
+build/
+cmake-build-*/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# ROS2
+install/
+log/
+
+# Editor
+.vscode/
+.DS_Store
