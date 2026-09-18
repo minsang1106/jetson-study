@@ -1,0 +1,2 @@
+# No third-party packages are currently installed in this virtual environment.
+# Add dependencies when the model loading or inference code is introduced.
