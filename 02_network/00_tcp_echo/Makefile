@@ -1,14 +1,25 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -g
 
-all: server client
+BUILD_DIR = build
 
-server: server.c
-	$(CC) $(CFLAGS) server.c -o server
+all: $(BUILD_DIR)/server \
+     $(BUILD_DIR)/client \
+     $(BUILD_DIR)/htonl_test
 
-client: client.c
-	$(CC) $(CFLAGS) client.c -o client
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+
+$(BUILD_DIR)/server: server.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
+
+$(BUILD_DIR)/client: client.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
+
+$(BUILD_DIR)/htonl_test: htonl_test.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	rm -f server client
+	rm -rf $(BUILD_DIR)
 
+.PHONY: all clean
