@@ -20,3 +20,7 @@ log/
 # Editor
 .vscode/
 .DS_Store
+
+# AI downloaded models and archived experiments
+10_AI/models/yolo*.pt
+10_AI/.archive/

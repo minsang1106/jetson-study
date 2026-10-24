@@ -1,24 +1,43 @@
 # AI 실습
 
-`model/mnist_cnn.pth`에 모델 파일을 보관합니다.
+IMX219 → Jetson YOLO11n GPU 객체탐지 → GStreamer → 맥 화면.
 
-## Python 환경 준비
+## 폴더 구성
 
-저장소 루트에서 실행합니다. 기존 가상환경은 Python 3.12.3으로 생성했습니다.
+```text
+10_AI/
+├── 00_yolo/               # 실행 코드
+│   ├── camera_test.py     # 카메라 영상 전송
+│   └── detect.py          # YOLO 객체탐지 후 전송
+├── models/                # 학습된 모델 파일
+│   ├── yolo11n.pt
+│   └── mnist_cnn.pth
+├── tools/                 # 환경 준비 도구
+│   └── link_jetson_runtime.py
+├── docs/                  # 상세 안내
+│   ├── usage.md
+│   └── installation.md
+├── requirements.txt       # 설치 패키지와 버전
+├── README.md
+├── .venv/                 # Python 실행 환경
+└── .archive/              # 사용하지 않는 이전 모델·캐시 보관
+```
+
+## 실행
+
+저장소 루트에서 실행합니다. `192.168.0.10`은 Jetson과 통신하는 맥 인터페이스의 IP로 바꾸세요.
+맥에서는 먼저 [영상 수신 명령](docs/usage.md#1-맥에서-수신-준비)을 실행합니다.
 
 ```bash
-python3.12 -m venv 10_AI/.venv
 source 10_AI/.venv/bin/activate
-python -m pip install -r 10_AI/requirements.txt
+python 10_AI/00_yolo/detect.py --host 192.168.0.10
 ```
 
-가상환경(`.venv/`)은 루트 `.gitignore`로 Git에서 제외하고,
-설치할 패키지 목록은 `requirements.txt`로 관리합니다.
-현재 가상환경에는 추가 설치된 패키지가 없어 목록이 비어 있습니다.
-모델 실행에 필요한 의존성은 로딩·추론 코드를 추가할 때 기록해야 합니다.
+카메라 원본만 확인하려면 `detect.py` 대신 `camera_test.py`를 실행합니다.
+종료는 Ctrl+C입니다. 두 프로그램에서 카메라를 동시에 열지 마세요.
 
-이 가상환경에 실습용 패키지를 설치한 뒤에는 저장소 루트에서 목록을 갱신합니다.
+- [실행 옵션·맥 수신·환경 재현](docs/usage.md)
+- [설치한 패키지와 버전](docs/installation.md)
 
-```bash
-python -m pip freeze > 10_AI/requirements.txt
-```
+모델 경로와 YOLO 설정 저장 경로는 `00_yolo/detect.py` 상단에서 지정합니다.
+라이브러리는 `.venv`에 설치하고, 모델은 `models`에서 읽습니다.
